@@ -1,6 +1,4 @@
 import gevent
-from gevent import monkey
-monkey.patch_all()
 
 from prowler.providers.aws.aws_provider import (
     generate_regional_clients,

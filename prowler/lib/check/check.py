@@ -8,16 +8,18 @@ import re
 import shutil
 import sys
 import traceback
-from gevent.pool import Pool
+
+from functools import partial
 from pkgutil import walk_packages
 from types import ModuleType
 from typing import Any
 
 from alive_progress import alive_bar
 from colorama import Fore, Style
+from gevent.pool import Pool
 
 import prowler
-from prowler.config.config import orange_color
+from prowler.config.config import orange_color, pool_size
 from prowler.lib.check.compliance_models import load_compliance_framework
 from prowler.lib.check.models import Check, load_check_metadata
 from prowler.lib.logger import logger
@@ -420,9 +422,8 @@ def execute_checks(
     audit_info: Any,
     audit_output_options: Provider_Output_Options,
 ) -> list:
-    # List to store all the check's findings
     all_findings = []
-    pool = Pool(10)
+    pool = Pool(pool_size)
     # Services and checks executed for the Audit Status
     services_executed = set()
     checks_executed = set()
@@ -458,9 +459,7 @@ def execute_checks(
                                         services_executed=services_executed,
                                         checks_executed=checks_executed)
 
-    findings = pool.map(partial_perform_execution, checks_to_execute)
-    pool.close()
-    pool.join()
+    findings = pool.imap(partial_perform_execution, checks_to_execute)
 
     for finding in findings:
         all_findings.extend(finding)
@@ -482,6 +481,7 @@ def execute(
         check_module_path = (
             f"prowler.providers.{provider}.services.{service}.{check_name}.{check_name}"
         )
+        print(check_module_path)
         lib = import_check(check_module_path)
         # Recover functions from check
         check_to_execute = getattr(lib, check_name)

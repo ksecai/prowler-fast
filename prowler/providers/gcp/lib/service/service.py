@@ -1,7 +1,4 @@
 import gevent
-from gevent import monkey
-monkey.patch_all()
-
 import google_auth_httplib2
 import httplib2
 from colorama import Fore, Style

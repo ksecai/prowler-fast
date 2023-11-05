@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from gevent import monkey
+monkey.patch_all()
 
 import os
 import sys
+import time
 
 from colorama import Fore, Style
 

@@ -1,6 +1,4 @@
 import gevent
-from gevent import monkey
-monkey.patch_all()
 
 import json
 from typing import Optional
