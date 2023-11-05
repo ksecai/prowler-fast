@@ -11,6 +11,7 @@ venv/
 build/
 dist/
 *.egg-info/
+.idea/*
 
 # Session
 Session.vim
@@ -27,6 +28,7 @@ tags
 
 # MacOs DS_Store
 *.DS_Store
+.idea/
 
 # Prowler output
 output/
