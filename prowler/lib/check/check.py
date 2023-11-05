@@ -1,11 +1,14 @@
 import functools
+import gevent
 import importlib
+import itertools
 import json
 import os
 import re
 import shutil
 import sys
 import traceback
+from gevent.pool import Pool
 from pkgutil import walk_packages
 from types import ModuleType
 from typing import Any
@@ -419,6 +422,7 @@ def execute_checks(
 ) -> list:
     # List to store all the check's findings
     all_findings = []
+    pool = Pool(10)
     # Services and checks executed for the Audit Status
     services_executed = set()
     checks_executed = set()
@@ -447,84 +451,24 @@ def execute_checks(
                 f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
             )
 
-    # Execution with the --only-logs flag
-    if audit_output_options.only_logs:
-        for check_name in checks_to_execute:
-            # Recover service from check name
-            service = check_name.split("_")[0]
-            try:
-                check_findings = execute(
-                    service,
-                    check_name,
-                    provider,
-                    audit_output_options,
-                    audit_info,
-                    services_executed,
-                    checks_executed,
-                )
-                all_findings.extend(check_findings)
+    partial_perform_execution = partial(execute,
+                                        provider=provider,
+                                        audit_output_options=audit_output_options,
+                                        audit_info=audit_info,
+                                        services_executed=services_executed,
+                                        checks_executed=checks_executed)
 
-            # If check does not exists in the provider or is from another provider
-            except ModuleNotFoundError:
-                logger.error(
-                    f"Check '{check_name}' was not found for the {provider.upper()} provider"
-                )
-            except Exception as error:
-                logger.error(
-                    f"{check_name} - {error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-                )
-    else:
-        # Default execution
-        checks_num = len(checks_to_execute)
-        plural_string = "checks"
-        singular_string = "check"
+    findings = pool.map(partial_perform_execution, checks_to_execute)
+    pool.close()
+    pool.join()
 
-        check_noun = plural_string if checks_num > 1 else singular_string
-        print(
-            f"{Style.BRIGHT}Executing {checks_num} {check_noun}, please wait...{Style.RESET_ALL}\n"
-        )
-        with alive_bar(
-            total=len(checks_to_execute),
-            ctrl_c=False,
-            bar="blocks",
-            spinner="classic",
-            stats=False,
-            enrich_print=False,
-        ) as bar:
-            for check_name in checks_to_execute:
-                # Recover service from check name
-                service = check_name.split("_")[0]
-                bar.title = (
-                    f"-> Scanning {orange_color}{service}{Style.RESET_ALL} service"
-                )
-                try:
-                    check_findings = execute(
-                        service,
-                        check_name,
-                        provider,
-                        audit_output_options,
-                        audit_info,
-                        services_executed,
-                        checks_executed,
-                    )
-                    all_findings.extend(check_findings)
+    for finding in findings:
+        all_findings.extend(finding)
 
-                # If check does not exists in the provider or is from another provider
-                except ModuleNotFoundError:
-                    logger.error(
-                        f"Check '{check_name}' was not found for the {provider.upper()} provider"
-                    )
-                except Exception as error:
-                    logger.error(
-                        f"{check_name} - {error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-                    )
-                bar()
-            bar.title = f"-> {Fore.GREEN}Scan completed!{Style.RESET_ALL}"
     return all_findings
 
 
 def execute(
-    service: str,
     check_name: str,
     provider: str,
     audit_output_options: Provider_Output_Options,
@@ -533,47 +477,59 @@ def execute(
     checks_executed: set,
 ):
     # Import check module
-    check_module_path = (
-        f"prowler.providers.{provider}.services.{service}.{check_name}.{check_name}"
-    )
-    lib = import_check(check_module_path)
-    # Recover functions from check
-    check_to_execute = getattr(lib, check_name)
-    c = check_to_execute()
+    try:
+        service = check_name.split("_")[0]
+        check_module_path = (
+            f"prowler.providers.{provider}.services.{service}.{check_name}.{check_name}"
+        )
+        lib = import_check(check_module_path)
+        # Recover functions from check
+        check_to_execute = getattr(lib, check_name)
+        c = check_to_execute()
 
-    # Run check
-    check_findings = run_check(c, audit_output_options)
+        # Run check
+        check_findings = run_check(c, audit_output_options)
 
-    # Update Audit Status
-    services_executed.add(service)
-    checks_executed.add(check_name)
-    audit_info.audit_metadata = update_audit_metadata(
-        audit_info.audit_metadata, services_executed, checks_executed
-    )
-
-    # Allowlist findings
-    if audit_output_options.allowlist_file:
-        check_findings = allowlist_findings(
-            audit_output_options.allowlist_file,
-            audit_info.audited_account,
-            check_findings,
+        # Update Audit Status
+        services_executed.add(service)
+        checks_executed.add(check_name)
+        audit_info.audit_metadata = update_audit_metadata(
+            audit_info.audit_metadata, services_executed, checks_executed
         )
 
-    # Report the check's findings
-    report(check_findings, audit_output_options, audit_info)
+        # Allowlist findings
+        if audit_output_options.allowlist_file:
+            check_findings = allowlist_findings(
+                audit_output_options.allowlist_file,
+                audit_info.audited_account,
+                check_findings,
+            )
 
-    if os.environ.get("PROWLER_REPORT_LIB_PATH"):
-        try:
-            logger.info("Using custom report interface ...")
-            lib = os.environ["PROWLER_REPORT_LIB_PATH"]
-            outputs_module = importlib.import_module(lib)
-            custom_report_interface = getattr(outputs_module, "report")
+        # Report the check's findings
+        report(check_findings, audit_output_options, audit_info)
 
-            custom_report_interface(check_findings, audit_output_options, audit_info)
-        except Exception:
-            sys.exit(1)
+        if os.environ.get("PROWLER_REPORT_LIB_PATH"):
+            try:
+                logger.info("Using custom report interface ...")
+                lib = os.environ["PROWLER_REPORT_LIB_PATH"]
+                outputs_module = importlib.import_module(lib)
+                custom_report_interface = getattr(outputs_module, "report")
 
-    return check_findings
+                custom_report_interface(check_findings, audit_output_options, audit_info)
+            except Exception:
+                sys.exit(1)
+
+        return check_findings
+    except ModuleNotFoundError:
+        logger.error(
+            f"Check '{check_name}' was not found for the {provider.upper()} provider"
+        )
+    except Exception as error:
+        logger.error(
+            f"{check_name} - {error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+        )
+    finally:
+        return []
 
 
 def update_audit_metadata(

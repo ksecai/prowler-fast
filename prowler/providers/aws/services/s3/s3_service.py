@@ -1,5 +1,8 @@
+import gevent
+from gevent import monkey
+monkey.patch_all()
+
 import json
-import threading
 from typing import Optional
 
 from botocore.client import ClientError
@@ -29,13 +32,10 @@ class S3(AWSService):
 
     # In the S3 service we override the "__threading_call__" method because we spawn a process per bucket instead of per region
     def __threading_call__(self, call):
-        threads = []
-        for bucket in self.buckets:
-            threads.append(threading.Thread(target=call, args=(bucket,)))
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+        greenlets = []
+        for regional_client in self.buckets:
+            greenlets.append(gevent.spawn(call, buckets))
+        gevent.joinall(greenlets)
 
     def __list_buckets__(self, audit_info):
         logger.info("S3 - Listing buckets...")
