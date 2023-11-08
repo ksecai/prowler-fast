@@ -6,6 +6,7 @@ import time
 from prowler.__main__ import prowler
 
 if __name__ == "__main__":
+    print("helleo")
     start_time = time.time()
     #sys.exit(prowler())
     prowler()

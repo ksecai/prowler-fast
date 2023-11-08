@@ -462,7 +462,8 @@ def execute_checks(
     findings = pool.imap(partial_perform_execution, checks_to_execute)
 
     for finding in findings:
-        all_findings.extend(finding)
+        if finding:
+            all_findings.extend(finding)
 
     return all_findings
 
@@ -481,7 +482,6 @@ def execute(
         check_module_path = (
             f"prowler.providers.{provider}.services.{service}.{check_name}.{check_name}"
         )
-        print(check_module_path)
         lib = import_check(check_module_path)
         # Recover functions from check
         check_to_execute = getattr(lib, check_name)
@@ -524,12 +524,12 @@ def execute(
         logger.error(
             f"Check '{check_name}' was not found for the {provider.upper()} provider"
         )
+        print(f"Check '{check_name}' was not found for the {provider.upper()} provider")
     except Exception as error:
         logger.error(
             f"{check_name} - {error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
         )
-    finally:
-        return []
+        print(f"{check_name} - {error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}")
 
 
 def update_audit_metadata(
