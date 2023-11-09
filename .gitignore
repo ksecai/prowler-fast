@@ -27,6 +27,7 @@ tags
 
 # MacOs DS_Store
 *.DS_Store
+.idea/
 
 # Prowler output
 output/

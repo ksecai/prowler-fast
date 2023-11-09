@@ -902,13 +902,13 @@ grpcio-gcp = ["grpcio-gcp (>=0.2.2,<1.0dev)"]
 
 [[package]]
 name = "google-api-python-client"
-version = "2.105.0"
+version = "2.106.0"
 description = "Google API Client Library for Python"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "google-api-python-client-2.105.0.tar.gz", hash = "sha256:0a8b32cfc2d9b3c1868ae6faef7ee1ab9c89a6cec30be709ea9c97f9a3e5902d"},
-    {file = "google_api_python_client-2.105.0-py2.py3-none-any.whl", hash = "sha256:571ce7c41e53415e385aab5a955725f71780550683ffcb71596f5809677d40b7"},
+    {file = "google-api-python-client-2.106.0.tar.gz", hash = "sha256:f6a3862be2f6e5e0536d7bd47b5af3f24ac0b9147c76c830cafb3329d71d5724"},
+    {file = "google_api_python_client-2.106.0-py2.py3-none-any.whl", hash = "sha256:c47c0dae5dd20aa43e4ea184566fe59d0c8fd0b86dd223b29040d8ea4f7ed6ea"},
 ]
 
 [package.dependencies]
@@ -1365,13 +1365,13 @@ min-versions = ["babel (==2.9.0)", "click (==7.0)", "colorama (==0.4)", "ghp-imp
 
 [[package]]
 name = "mkdocs-material"
-version = "9.4.7"
+version = "9.4.8"
 description = "Documentation that simply works"
 optional = true
 python-versions = ">=3.8"
 files = [
-    {file = "mkdocs_material-9.4.7-py3-none-any.whl", hash = "sha256:4d698d52bb6a6a3c452ab854481c4cdb68453a0420956a6aee2de55fe15fe610"},
-    {file = "mkdocs_material-9.4.7.tar.gz", hash = "sha256:e704e001c9ef17291e1d3462c202425217601653e18f68f85d28eff4690e662b"},
+    {file = "mkdocs_material-9.4.8-py3-none-any.whl", hash = "sha256:8b20f6851bddeef37dced903893cd176cf13a21a482e97705a103c45f06ce9b9"},
+    {file = "mkdocs_material-9.4.8.tar.gz", hash = "sha256:f0c101453e8bc12b040e8b64ca39a405d950d8402609b1378cc2b98976e74b5f"},
 ]
 
 [package.dependencies]
@@ -2889,4 +2889,4 @@ docs = ["mkdocs", "mkdocs-material"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "6ed432b0310655c247da3b4f542b9410842fb46de838408b99b6e61fb367cf38"
+content-hash = "d765b7a8c5d49f3a20316d575093430785a29ed5968d315b727455dea803331c"

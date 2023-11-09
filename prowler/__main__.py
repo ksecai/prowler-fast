@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from gevent import monkey
+monkey.patch_all()
 
 import os
 import sys
+import time
 
 from colorama import Fore, Style
 
@@ -47,11 +50,13 @@ from prowler.providers.common.audit_info import (
     set_provider_audit_info,
     set_provider_execution_parameters,
 )
+from prowler.providers.common.clean import clean_provider_local_output_directories
 from prowler.providers.common.outputs import set_provider_output_options
 from prowler.providers.common.quick_inventory import run_provider_quick_inventory
 
 
 def prowler():
+    start_time = time.time()
     # Parse Arguments
     parser = ProwlerArgumentParser()
     args = parser.parse()
@@ -276,6 +281,9 @@ def prowler():
             print(
                 f"{Style.BRIGHT}{Fore.GREEN}\n{findings_archived_in_security_hub} findings archived in AWS Security Hub!{Style.RESET_ALL}"
             )
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"Execution time: {execution_time} seconds")
 
     # Display summary table
     if not args.only_logs:
@@ -301,9 +309,13 @@ def prowler():
     if checks_folder:
         remove_custom_checks_module(checks_folder, provider)
 
+    # clean local directories
+    clean_provider_local_output_directories(args)
+
     # If there are failed findings exit code 3, except if -z is input
     if not args.ignore_exit_code_3 and stats["total_fail"] > 0:
         sys.exit(3)
+
 
 
 if __name__ == "__main__":

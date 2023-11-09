@@ -18,6 +18,7 @@ square_logo_img = "https://user-images.githubusercontent.com/38561120/235905862-
 aws_logo = "https://user-images.githubusercontent.com/38561120/235953920-3e3fba08-0795-41dc-b480-9bea57db9f2e.png"
 azure_logo = "https://user-images.githubusercontent.com/38561120/235927375-b23e2e0f-8932-49ec-b59c-d89f61c8041d.png"
 gcp_logo = "https://user-images.githubusercontent.com/38561120/235928332-eb4accdc-c226-4391-8e97-6ca86a91cf50.png"
+pool_size = 100
 
 orange_color = "\033[38;5;208m"
 banner_color = "\033[1;92m"

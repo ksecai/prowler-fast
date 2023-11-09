@@ -1,5 +1,4 @@
-import threading
-
+import gevent
 import google_auth_httplib2
 import httplib2
 from colorama import Fore, Style
@@ -33,13 +32,10 @@ class GCPService:
         return self.client
 
     def __threading_call__(self, call, iterator):
-        threads = []
+        greenlets = []
         for value in iterator:
-            threads.append(threading.Thread(target=call, args=(value,)))
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+            greenlets.append(gevent.spawn(call, value))
+        gevent.joinall(greenlets)
 
     def __get_AuthorizedHttp_client__(self):
         return google_auth_httplib2.AuthorizedHttp(

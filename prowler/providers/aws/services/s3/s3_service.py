@@ -1,5 +1,6 @@
+import gevent
+
 import json
-import threading
 from typing import Optional
 
 from botocore.client import ClientError
@@ -29,13 +30,10 @@ class S3(AWSService):
 
     # In the S3 service we override the "__threading_call__" method because we spawn a process per bucket instead of per region
     def __threading_call__(self, call):
-        threads = []
+        greenlets = []
         for bucket in self.buckets:
-            threads.append(threading.Thread(target=call, args=(bucket,)))
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+            greenlets.append(gevent.spawn(call, bucket))
+        gevent.joinall(greenlets)
 
     def __list_buckets__(self, audit_info):
         logger.info("S3 - Listing buckets...")
@@ -43,45 +41,49 @@ class S3(AWSService):
         try:
             list_buckets = self.client.list_buckets()
             for bucket in list_buckets["Buckets"]:
-                bucket_region = self.client.get_bucket_location(Bucket=bucket["Name"])[
-                    "LocationConstraint"
-                ]
-                if bucket_region == "EU":  # If EU, bucket_region is eu-west-1
-                    bucket_region = "eu-west-1"
-                if not bucket_region:  # If None, bucket_region is us-east-1
-                    bucket_region = "us-east-1"
-                # Arn
-                arn = f"arn:{self.audited_partition}:s3:::{bucket['Name']}"
-                if not self.audit_resources or (
-                    is_resource_filtered(arn, self.audit_resources)
-                ):
-                    self.regions_with_buckets.append(bucket_region)
-                    # Check if there are filter regions
-                    if audit_info.audited_regions:
-                        if bucket_region in audit_info.audited_regions:
+                try:
+                    bucket_region = self.client.get_bucket_location(
+                        Bucket=bucket["Name"]
+                    )["LocationConstraint"]
+                    if bucket_region == "EU":  # If EU, bucket_region is eu-west-1
+                        bucket_region = "eu-west-1"
+                    if not bucket_region:  # If None, bucket_region is us-east-1
+                        bucket_region = "us-east-1"
+                    # Arn
+                    arn = f"arn:{self.audited_partition}:s3:::{bucket['Name']}"
+                    if not self.audit_resources or (
+                        is_resource_filtered(arn, self.audit_resources)
+                    ):
+                        self.regions_with_buckets.append(bucket_region)
+                        # Check if there are filter regions
+                        if audit_info.audited_regions:
+                            if bucket_region in audit_info.audited_regions:
+                                buckets.append(
+                                    Bucket(
+                                        name=bucket["Name"],
+                                        arn=arn,
+                                        region=bucket_region,
+                                    )
+                                )
+                        else:
                             buckets.append(
                                 Bucket(
                                     name=bucket["Name"], arn=arn, region=bucket_region
                                 )
                             )
-                    else:
-                        buckets.append(
-                            Bucket(name=bucket["Name"], arn=arn, region=bucket_region)
+                except ClientError as error:
+                    if error.response["Error"]["Code"] == "NoSuchBucket":
+                        logger.warning(
+                            f"{bucket['Name']} -- {error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
                         )
-        except ClientError as error:
-            if error.response["Error"]["Code"] == "NoSuchBucket":
-                logger.warning(
-                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-                )
+                except Exception as error:
+                    logger.error(
+                        f"{bucket['Name']} -- {error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                    )
         except Exception as error:
-            if bucket:
-                logger.error(
-                    f"{bucket['Name']} -- {error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-                )
-            else:
-                logger.error(
-                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
-                )
+            logger.error(
+                f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+            )
         return buckets
 
     def __get_bucket_versioning__(self, bucket):

@@ -1,4 +1,4 @@
-import threading
+import gevent
 
 from prowler.providers.aws.aws_provider import (
     generate_regional_clients,
@@ -48,10 +48,7 @@ class AWSService:
         return self.session
 
     def __threading_call__(self, call):
-        threads = []
+        greenlets = []
         for regional_client in self.regional_clients.values():
-            threads.append(threading.Thread(target=call, args=(regional_client,)))
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+            greenlets.append(gevent.spawn(call, regional_client))
+        gevent.joinall(greenlets)
