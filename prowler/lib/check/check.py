@@ -423,7 +423,9 @@ def execute_checks(
     audit_output_options: Provider_Output_Options,
 ) -> list:
     all_findings = []
-    pool = Pool(pool_size)
+    len_checks = len(checks_to_execute)
+    concurrency = min(pool_size, len_checks)
+    pool = Pool(concurrency)
     # Services and checks executed for the Audit Status
     services_executed = set()
     checks_executed = set()
