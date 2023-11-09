@@ -524,12 +524,10 @@ def execute(
         logger.error(
             f"Check '{check_name}' was not found for the {provider.upper()} provider"
         )
-        print(f"Check '{check_name}' was not found for the {provider.upper()} provider")
     except Exception as error:
         logger.error(
             f"{check_name} - {error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
         )
-        print(f"{check_name} - {error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}")
 
 
 def update_audit_metadata(

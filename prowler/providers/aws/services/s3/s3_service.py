@@ -31,8 +31,8 @@ class S3(AWSService):
     # In the S3 service we override the "__threading_call__" method because we spawn a process per bucket instead of per region
     def __threading_call__(self, call):
         greenlets = []
-        for regional_client in self.buckets:
-            greenlets.append(gevent.spawn(call, buckets))
+        for bucket in self.buckets:
+            greenlets.append(gevent.spawn(call, bucket))
         gevent.joinall(greenlets)
 
     def __list_buckets__(self, audit_info):
