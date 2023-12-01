@@ -29,6 +29,10 @@ from prowler.lib.check.check import (
 )
 from prowler.lib.check.checks_loader import load_checks_to_execute
 from prowler.lib.check.compliance import update_checks_metadata_with_compliance
+from prowler.lib.check.custom_checks_metadata import (
+    parse_custom_checks_metadata_file,
+    update_checks_metadata,
+)
 from prowler.lib.cli.parser import ProwlerArgumentParser
 from prowler.lib.logger import logger, set_logging_config
 from prowler.lib.outputs.compliance import display_compliance_table
@@ -72,6 +76,7 @@ def prowler():
     checks_folder = args.checks_folder
     severities = args.severity
     compliance_framework = args.compliance
+    custom_checks_metadata_file = args.custom_checks_metadata_file
 
     if not args.no_banner:
         print_banner(args)
@@ -101,9 +106,19 @@ def prowler():
 
     bulk_compliance_frameworks = bulk_load_compliance_frameworks(provider)
     # Complete checks metadata with the compliance framework specification
-    update_checks_metadata_with_compliance(
+    bulk_checks_metadata = update_checks_metadata_with_compliance(
         bulk_compliance_frameworks, bulk_checks_metadata
     )
+    # Update checks metadata if the --custom-checks-metadata-file is present
+    custom_checks_metadata = None
+    if custom_checks_metadata_file:
+        custom_checks_metadata = parse_custom_checks_metadata_file(
+            provider, custom_checks_metadata_file
+        )
+        bulk_checks_metadata = update_checks_metadata(
+            bulk_checks_metadata, custom_checks_metadata
+        )
+
     if args.list_compliance:
         print_compliance_frameworks(bulk_compliance_frameworks)
         sys.exit()
@@ -179,7 +194,11 @@ def prowler():
     findings = []
     if len(checks_to_execute):
         findings = execute_checks(
-            checks_to_execute, provider, audit_info, audit_output_options
+            checks_to_execute,
+            provider,
+            audit_info,
+            audit_output_options,
+            custom_checks_metadata,
         )
     else:
         logger.error(
@@ -251,7 +270,10 @@ def prowler():
         for region in security_hub_regions:
             # Save the regions where AWS Security Hub is enabled
             if verify_security_hub_integration_enabled_per_region(
-                region, audit_info.audit_session
+                audit_info.audited_partition,
+                region,
+                audit_info.audit_session,
+                audit_info.audited_account,
             ):
                 aws_security_enabled_regions.append(region)
 
