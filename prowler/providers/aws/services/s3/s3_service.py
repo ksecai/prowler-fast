@@ -99,6 +99,15 @@ class S3(AWSService):
             if "MFADelete" in bucket_versioning:
                 if "Enabled" == bucket_versioning["MFADelete"]:
                     bucket.mfa_delete = True
+        except ClientError as error:
+            if error.response["Error"]["Code"] == "NoSuchBucket":
+                logger.warning(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
+            else:
+                logger.error(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
         except Exception as error:
             if bucket.region:
                 logger.error(
@@ -151,6 +160,15 @@ class S3(AWSService):
                 bucket.logging_target_bucket = bucket_logging["LoggingEnabled"][
                     "TargetBucket"
                 ]
+        except ClientError as error:
+            if error.response["Error"]["Code"] == "NoSuchBucket":
+                logger.warning(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
+            else:
+                logger.error(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
         except Exception as error:
             if regional_client:
                 logger.error(
@@ -222,6 +240,15 @@ class S3(AWSService):
                     grantee.permission = grant["Permission"]
                 grantees.append(grantee)
             bucket.acl_grantees = grantees
+        except ClientError as error:
+            if error.response["Error"]["Code"] == "NoSuchBucket":
+                logger.warning(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
+            else:
+                logger.error(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
         except Exception as error:
             if regional_client:
                 logger.error(
@@ -239,6 +266,15 @@ class S3(AWSService):
             bucket.policy = json.loads(
                 regional_client.get_bucket_policy(Bucket=bucket.name)["Policy"]
             )
+        except ClientError as error:
+            if error.response["Error"]["Code"] == "NoSuchBucket":
+                logger.warning(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
+            else:
+                logger.error(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
         except Exception as error:
             if "NoSuchBucketPolicy" in str(error):
                 bucket.policy = {}
