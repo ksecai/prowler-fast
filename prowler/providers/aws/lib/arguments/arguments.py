@@ -1,7 +1,8 @@
 from argparse import ArgumentTypeError, Namespace
-from re import search
+from re import fullmatch, search
 
 from prowler.providers.aws.aws_provider import get_aws_available_regions
+from prowler.providers.aws.config import ROLE_SESSION_NAME
 from prowler.providers.aws.lib.arn.arn import arn_type
 
 
@@ -26,6 +27,13 @@ def init_parser(self):
         default=None,
         help="ARN of the role to be assumed",
         # Pending ARN validation
+    )
+    aws_auth_subparser.add_argument(
+        "--role-session-name",
+        nargs="?",
+        default=ROLE_SESSION_NAME,
+        help="An identifier for the assumed role session. Defaults to ProwlerAssessmentSession",
+        type=validate_role_session_name,
     )
     aws_auth_subparser.add_argument(
         "--sts-endpoint-region",
@@ -187,10 +195,15 @@ def validate_arguments(arguments: Namespace) -> tuple[bool, str]:
 
     # Handle if session_duration is not the default value or external_id is set
     if (
-        arguments.session_duration and arguments.session_duration != 3600
-    ) or arguments.external_id:
+        (arguments.session_duration and arguments.session_duration != 3600)
+        or arguments.external_id
+        or arguments.role_session_name != ROLE_SESSION_NAME
+    ):
         if not arguments.role:
-            return (False, "To use -I/-T options -R option is needed")
+            return (
+                False,
+                "To use -I/--external-id, -T/--session-duration or --role-session-name options -R/--role option is needed",
+            )
 
     return (True, "")
 
@@ -202,4 +215,17 @@ def validate_bucket(bucket_name):
     else:
         raise ArgumentTypeError(
             "Bucket name must be valid (https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html)"
+        )
+
+
+def validate_role_session_name(session_name):
+    """
+    validates that the role session name is valid
+    Documentation: https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
+    """
+    if fullmatch("[\w+=,.@-]{2,64}", session_name):
+        return session_name
+    else:
+        raise ArgumentTypeError(
+            "Role Session Name must be 2-64 characters long and consist only of upper- and lower-case alphanumeric characters with no spaces. You can also include underscores or any of the following characters: =,.@-"
         )

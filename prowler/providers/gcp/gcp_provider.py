@@ -18,9 +18,6 @@ class GCP_Provider:
         self.credentials, self.default_project_id = self.__set_credentials__(
             credentials_file
         )
-        if not self.default_project_id:
-            logger.critical("No Project ID associated to Google Credentials.")
-            sys.exit(1)
 
         self.project_ids = []
         accessible_projects = self.get_project_ids()

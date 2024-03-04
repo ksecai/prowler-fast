@@ -10,7 +10,10 @@ from prowler.config.config import aws_services_json_file
 from prowler.lib.check.check import list_modules, recover_checks_from_service
 from prowler.lib.logger import logger
 from prowler.lib.utils.utils import open_file, parse_json_file
-from prowler.providers.aws.config import AWS_STS_GLOBAL_ENDPOINT_REGION
+from prowler.providers.aws.config import (
+    AWS_STS_GLOBAL_ENDPOINT_REGION,
+    ROLE_SESSION_NAME,
+)
 from prowler.providers.aws.lib.audit_info.models import AWS_Assume_Role, AWS_Audit_Info
 from prowler.providers.aws.lib.credentials.credentials import create_sts_session
 
@@ -113,9 +116,15 @@ def assume_role(
     sts_endpoint_region: str = None,
 ) -> dict:
     try:
+        role_session_name = (
+            assumed_role_info.role_session_name
+            if assumed_role_info.role_session_name
+            else ROLE_SESSION_NAME
+        )
+
         assume_role_arguments = {
             "RoleArn": assumed_role_info.role_arn,
-            "RoleSessionName": "ProwlerAsessmentSession",
+            "RoleSessionName": role_session_name,
             "DurationSeconds": assumed_role_info.session_duration,
         }
 
@@ -193,10 +202,14 @@ def get_aws_enabled_regions(audit_info: AWS_Audit_Info) -> set:
     ec2_client = audit_info.audit_session.client(service, region_name=default_region)
 
     enabled_regions = set()
-    # With AllRegions=False we only get the enabled regions for the account
-    for region in ec2_client.describe_regions(AllRegions=False).get("Regions", []):
-        enabled_regions.add(region.get("RegionName"))
-
+    try:
+        # With AllRegions=False we only get the enabled regions for the account
+        for region in ec2_client.describe_regions(AllRegions=False).get("Regions", []):
+            enabled_regions.add(region.get("RegionName"))
+    except Exception as error:
+        logger.warning(
+            f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+        )
     return enabled_regions
 
 

@@ -78,6 +78,12 @@ class Azure_Output_Options(Provider_Output_Options):
         # First call Provider_Output_Options init
         super().__init__(arguments, allowlist_file, bulk_checks_metadata)
 
+        # Confire Shodan API
+        if arguments.shodan:
+            audit_info = change_config_var(
+                "shodan_api_key", arguments.shodan, audit_info
+            )
+
         # Check if custom output filename was input, if not, set the default
         if (
             not hasattr(arguments, "output_filename")
@@ -104,7 +110,7 @@ class Gcp_Output_Options(Provider_Output_Options):
             not hasattr(arguments, "output_filename")
             or arguments.output_filename is None
         ):
-            self.output_filename = f"prowler-output-{audit_info.default_project_id}-{output_file_timestamp}"
+            self.output_filename = f"prowler-output-{getattr(audit_info.credentials, '_service_account_email', 'default')}-{output_file_timestamp}"
         else:
             self.output_filename = arguments.output_filename
 

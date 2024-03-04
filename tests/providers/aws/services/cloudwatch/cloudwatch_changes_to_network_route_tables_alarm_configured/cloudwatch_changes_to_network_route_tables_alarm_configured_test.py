@@ -1,7 +1,7 @@
 from unittest import mock
 
 from boto3 import client
-from moto import mock_cloudtrail, mock_cloudwatch, mock_logs, mock_s3
+from moto import mock_aws
 
 from tests.providers.aws.audit_info_utils import (
     AWS_ACCOUNT_ARN,
@@ -13,9 +13,7 @@ from tests.providers.aws.audit_info_utils import (
 
 
 class Test_cloudwatch_changes_to_network_route_tables_alarm_configured:
-    @mock_logs
-    @mock_cloudtrail
-    @mock_cloudwatch
+    @mock_aws
     def test_cloudwatch_no_log_groups(self):
         from prowler.providers.aws.services.cloudtrail.cloudtrail_service import (
             Cloudtrail,
@@ -70,10 +68,7 @@ class Test_cloudwatch_changes_to_network_route_tables_alarm_configured:
             assert result[0].resource_arn == AWS_ACCOUNT_ARN
             assert result[0].region == AWS_REGION_EU_WEST_1
 
-    @mock_logs
-    @mock_cloudtrail
-    @mock_cloudwatch
-    @mock_s3
+    @mock_aws
     def test_cloudwatch_trail_no_log_group(self):
         cloudtrail_client = client("cloudtrail", region_name=AWS_REGION_US_EAST_1)
         s3_client = client("s3", region_name=AWS_REGION_US_EAST_1)
@@ -133,10 +128,7 @@ class Test_cloudwatch_changes_to_network_route_tables_alarm_configured:
             assert result[0].resource_arn == AWS_ACCOUNT_ARN
             assert result[0].region == AWS_REGION_EU_WEST_1
 
-    @mock_logs
-    @mock_cloudtrail
-    @mock_cloudwatch
-    @mock_s3
+    @mock_aws
     def test_cloudwatch_trail_with_log_group(self):
         cloudtrail_client = client("cloudtrail", region_name=AWS_REGION_US_EAST_1)
         logs_client = client("logs", region_name=AWS_REGION_US_EAST_1)
@@ -202,10 +194,7 @@ class Test_cloudwatch_changes_to_network_route_tables_alarm_configured:
             assert result[0].resource_arn == AWS_ACCOUNT_ARN
             assert result[0].region == AWS_REGION_EU_WEST_1
 
-    @mock_logs
-    @mock_cloudtrail
-    @mock_cloudwatch
-    @mock_s3
+    @mock_aws
     def test_cloudwatch_trail_with_log_group_with_metric(self):
         cloudtrail_client = client("cloudtrail", region_name=AWS_REGION_US_EAST_1)
         logs_client = client("logs", region_name=AWS_REGION_US_EAST_1)
@@ -220,7 +209,7 @@ class Test_cloudwatch_changes_to_network_route_tables_alarm_configured:
         logs_client.put_metric_filter(
             logGroupName="/log-group/test",
             filterName="test-filter",
-            filterPattern="{($.eventName = CreateRoute) || ($.eventName = CreateRouteTable) || ($.eventName = ReplaceRoute) || ($.eventName = ReplaceRouteTableAssociation)|| ($.eventName = DeleteRouteTable) || ($.eventName = DeleteRoute) || ($.eventName = DisassociateRouteTable) }",
+            filterPattern="{($.eventSource = ec2.amazonaws.com) && ($.eventName = CreateRoute) || ($.eventName = CreateRouteTable) || ($.eventName = ReplaceRoute) || ($.eventName = ReplaceRouteTableAssociation)|| ($.eventName = DeleteRouteTable) || ($.eventName = DeleteRoute) || ($.eventName = DisassociateRouteTable) }",
             metricTransformations=[
                 {
                     "metricName": "my-metric",
@@ -286,10 +275,7 @@ class Test_cloudwatch_changes_to_network_route_tables_alarm_configured:
             )
             assert result[0].region == AWS_REGION_US_EAST_1
 
-    @mock_logs
-    @mock_cloudtrail
-    @mock_cloudwatch
-    @mock_s3
+    @mock_aws
     def test_cloudwatch_trail_with_log_group_with_metric_and_alarm(self):
         cloudtrail_client = client("cloudtrail", region_name=AWS_REGION_US_EAST_1)
         cloudwatch_client = client("cloudwatch", region_name=AWS_REGION_US_EAST_1)
@@ -305,7 +291,7 @@ class Test_cloudwatch_changes_to_network_route_tables_alarm_configured:
         logs_client.put_metric_filter(
             logGroupName="/log-group/test",
             filterName="test-filter",
-            filterPattern="{($.eventName = CreateRoute) || ($.eventName = CreateRouteTable) || ($.eventName = ReplaceRoute) || ($.eventName = ReplaceRouteTableAssociation)|| ($.eventName = DeleteRouteTable) || ($.eventName = DeleteRoute) || ($.eventName = DisassociateRouteTable) }",
+            filterPattern="{($.eventSource = ec2.amazonaws.com) && ($.eventName = CreateRoute) || ($.eventName = CreateRouteTable) || ($.eventName = ReplaceRoute) || ($.eventName = ReplaceRouteTableAssociation)|| ($.eventName = DeleteRouteTable) || ($.eventName = DeleteRoute) || ($.eventName = DisassociateRouteTable) }",
             metricTransformations=[
                 {
                     "metricName": "my-metric",
@@ -382,10 +368,7 @@ class Test_cloudwatch_changes_to_network_route_tables_alarm_configured:
             )
             assert result[0].region == AWS_REGION_US_EAST_1
 
-    @mock_logs
-    @mock_cloudtrail
-    @mock_cloudwatch
-    @mock_s3
+    @mock_aws
     def test_cloudwatch_trail_with_log_group_with_metric_and_alarm_with_quotes(self):
         cloudtrail_client = client("cloudtrail", region_name=AWS_REGION_US_EAST_1)
         cloudwatch_client = client("cloudwatch", region_name=AWS_REGION_US_EAST_1)
@@ -401,7 +384,7 @@ class Test_cloudwatch_changes_to_network_route_tables_alarm_configured:
         logs_client.put_metric_filter(
             logGroupName="/log-group/test",
             filterName="test-filter",
-            filterPattern='{($.eventName = "CreateRoute") || ($.eventName = "CreateRouteTable") || ($.eventName = "ReplaceRoute") || ($.eventName = "ReplaceRouteTableAssociation")|| ($.eventName = "DeleteRouteTable") || ($.eventName = "DeleteRoute") || ($.eventName = "DisassociateRouteTable") }',
+            filterPattern='{($.eventSource = ec2.amazonaws.com) && ($.eventName = CreateRoute) || ($.eventName = "CreateRouteTable") || ($.eventName = "ReplaceRoute") || ($.eventName = "ReplaceRouteTableAssociation")|| ($.eventName = "DeleteRouteTable") || ($.eventName = "DeleteRoute") || ($.eventName = "DisassociateRouteTable") }',
             metricTransformations=[
                 {
                     "metricName": "my-metric",
@@ -478,10 +461,7 @@ class Test_cloudwatch_changes_to_network_route_tables_alarm_configured:
             )
             assert result[0].region == AWS_REGION_US_EAST_1
 
-    @mock_logs
-    @mock_cloudtrail
-    @mock_cloudwatch
-    @mock_s3
+    @mock_aws
     def test_cloudwatch_trail_with_log_group_with_metric_and_alarm_with_newlines(self):
         cloudtrail_client = client("cloudtrail", region_name=AWS_REGION_US_EAST_1)
         cloudwatch_client = client("cloudwatch", region_name=AWS_REGION_US_EAST_1)
@@ -497,7 +477,7 @@ class Test_cloudwatch_changes_to_network_route_tables_alarm_configured:
         logs_client.put_metric_filter(
             logGroupName="/log-group/test",
             filterName="test-filter",
-            filterPattern='{($.eventName = "CreateRoute") ||\n ($.eventName = "CreateRouteTable") ||\n ($.eventName = "ReplaceRoute") ||\n ($.eventName = "ReplaceRouteTableAssociation")||\n ($.eventName = "DeleteRouteTable") ||\n ($.eventName = "DeleteRoute") ||\n ($.eventName = "DisassociateRouteTable") }',
+            filterPattern='{($.eventSource = ec2.amazonaws.com) && ($.eventName = CreateRoute) ||\n ($.eventName = "CreateRouteTable") ||\n ($.eventName = "ReplaceRoute") ||\n ($.eventName = "ReplaceRouteTableAssociation")||\n ($.eventName = "DeleteRouteTable") ||\n ($.eventName = "DeleteRoute") ||\n ($.eventName = "DisassociateRouteTable") }',
             metricTransformations=[
                 {
                     "metricName": "my-metric",

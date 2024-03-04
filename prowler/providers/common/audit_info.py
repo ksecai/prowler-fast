@@ -21,6 +21,7 @@ from prowler.providers.aws.lib.credentials.credentials import (
 )
 from prowler.providers.aws.lib.organizations.organizations import (
     get_organizations_metadata,
+    parse_organizations_metadata,
 )
 from prowler.providers.aws.lib.resource_api_tagging.resource_api_tagging import (
     get_tagged_resources,
@@ -43,15 +44,7 @@ class Audit_Info:
 
     def print_gcp_credentials(self, audit_info: GCP_Audit_Info):
         # Beautify audited profile, set "default" if there is no profile set
-        try:
-            getattr(audit_info.credentials, "_service_account_email")
-            profile = (
-                audit_info.credentials._service_account_email
-                if audit_info.credentials._service_account_email is not None
-                else "default"
-            )
-        except AttributeError:
-            profile = "default"
+        profile = getattr(audit_info.credentials, "_service_account_email", "default")
 
         report = f"""
 This report is being generated using credentials below:
@@ -85,6 +78,7 @@ Azure Identity Type: {Fore.YELLOW}[{audit_info.identity.identity_type}]{Style.RE
         current_audit_info.assumed_role_info.role_arn = input_role
         input_session_duration = arguments.get("session_duration")
         input_external_id = arguments.get("external_id")
+        input_role_session_name = arguments.get("role_session_name")
 
         # STS Endpoint Region
         sts_endpoint_region = arguments.get("sts_endpoint_region")
@@ -153,6 +147,9 @@ Azure Identity Type: {Fore.YELLOW}[{audit_info.identity.identity_type}]{Style.RE
             )
             current_audit_info.assumed_role_info.external_id = input_external_id
             current_audit_info.assumed_role_info.mfa_enabled = input_mfa
+            current_audit_info.assumed_role_info.role_session_name = (
+                input_role_session_name
+            )
 
             # Check if role arn is valid
             try:
@@ -224,17 +221,53 @@ Azure Identity Type: {Fore.YELLOW}[{audit_info.identity.identity_type}]{Style.RE
 
             else:
                 logger.info(
-                    f"Getting organizations metadata for account {organizations_role_arn}"
+                    f"Getting organizations metadata for account with IAM Role ARN {organizations_role_arn}"
                 )
                 assumed_credentials = assume_role(
                     aws_provider.aws_session,
                     aws_provider.role_info,
                     sts_endpoint_region,
                 )
-                current_audit_info.organizations_metadata = get_organizations_metadata(
-                    current_audit_info.audited_account, assumed_credentials
+                organizations_metadata, list_tags_for_resource = (
+                    get_organizations_metadata(
+                        current_audit_info.audited_account, assumed_credentials
+                    )
                 )
-                logger.info("Organizations metadata retrieved")
+                current_audit_info.organizations_metadata = (
+                    parse_organizations_metadata(
+                        organizations_metadata, list_tags_for_resource
+                    )
+                )
+                logger.info(
+                    f"Organizations metadata retrieved with IAM Role ARN {organizations_role_arn}"
+                )
+        else:
+            try:
+                logger.info(
+                    "Getting organizations metadata for account if it is a delegated administrator"
+                )
+                organizations_metadata, list_tags_for_resource = (
+                    get_organizations_metadata(
+                        aws_account_id=current_audit_info.audited_account,
+                        session=current_audit_info.audit_session,
+                    )
+                )
+                if organizations_metadata:
+                    current_audit_info.organizations_metadata = (
+                        parse_organizations_metadata(
+                            organizations_metadata, list_tags_for_resource
+                        )
+                    )
+
+                    logger.info(
+                        "Organizations metadata retrieved as a delegated administrator"
+                    )
+            except Exception as error:
+                # If the account is not a delegated administrator for AWS Organizations a credentials error will be thrown
+                # Since it is a permission issue for an optional we'll raise a warning
+                logger.warning(
+                    f"{error.__class__.__name__}[{error.__traceback__.tb_lineno}]: {error}"
+                )
 
         # Setting default region of session
         if current_audit_info.audit_session.region_name:
@@ -326,6 +359,9 @@ Azure Identity Type: {Fore.YELLOW}[{audit_info.identity.identity_type}]{Style.RE
             base_url=region_config["base_url"],
             credential_scopes=region_config["credential_scopes"],
         )
+        azure_audit_info.locations = azure_provider.get_locations(
+            azure_audit_info.credentials, region_config
+        )
 
         if not arguments.get("only_logs"):
             self.print_azure_credentials(azure_audit_info)
@@ -382,7 +418,7 @@ def set_provider_audit_info(provider: str, arguments: dict):
 
 def set_provider_execution_parameters(provider: str, audit_info):
     """
-    set_provider_audit_info configures automatically the audit execution based on the selected provider and returns the checks that are going to be executed.
+    set_provider_execution_parameters" configures automatically the audit execution based on the selected provider and returns the checks that are going to be executed.
     """
     try:
         set_provider_execution_parameters_function = (

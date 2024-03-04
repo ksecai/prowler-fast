@@ -5,7 +5,11 @@ import pytest
 from mock import patch
 
 from prowler.lib.cli.parser import ProwlerArgumentParser
-from prowler.providers.aws.lib.arguments.arguments import validate_bucket
+from prowler.providers.aws.config import ROLE_SESSION_NAME
+from prowler.providers.aws.lib.arguments.arguments import (
+    validate_bucket,
+    validate_role_session_name,
+)
 from prowler.providers.azure.lib.arguments.arguments import validate_azure_region
 
 prowler_command = "prowler"
@@ -118,6 +122,7 @@ class Test_Parser:
         assert not parsed.sp_env_auth
         assert not parsed.browser_auth
         assert not parsed.managed_identity_auth
+        assert not parsed.shodan
 
     def test_default_parser_no_arguments_gcp(self):
         provider = "gcp"
@@ -740,7 +745,7 @@ class Test_Parser:
         assert wrapped_exit.value.code == 2
         assert (
             capsys.readouterr().err
-            == f"{prowler_default_usage_error}\nprowler: error: aws: To use -I/-T options -R option is needed\n"
+            == f"{prowler_default_usage_error}\nprowler: error: aws: To use -I/--external-id, -T/--session-duration or --role-session-name options -R/--role option is needed\n"
         )
 
     def test_aws_parser_session_duration_long(self, capsys):
@@ -753,7 +758,7 @@ class Test_Parser:
         assert wrapped_exit.value.code == 2
         assert (
             capsys.readouterr().err
-            == f"{prowler_default_usage_error}\nprowler: error: aws: To use -I/-T options -R option is needed\n"
+            == f"{prowler_default_usage_error}\nprowler: error: aws: To use -I/--external-id, -T/--session-duration or --role-session-name options -R/--role option is needed\n"
         )
 
     # TODO
@@ -774,7 +779,7 @@ class Test_Parser:
         assert wrapped_exit.value.code == 2
         assert (
             capsys.readouterr().err
-            == f"{prowler_default_usage_error}\nprowler: error: aws: To use -I/-T options -R option is needed\n"
+            == f"{prowler_default_usage_error}\nprowler: error: aws: To use -I/--external-id, -T/--session-duration or --role-session-name options -R/--role option is needed\n"
         )
 
     def test_aws_parser_external_id_long(self, capsys):
@@ -787,7 +792,7 @@ class Test_Parser:
         assert wrapped_exit.value.code == 2
         assert (
             capsys.readouterr().err
-            == f"{prowler_default_usage_error}\nprowler: error: aws: To use -I/-T options -R option is needed\n"
+            == f"{prowler_default_usage_error}\nprowler: error: aws: To use -I/--external-id, -T/--session-duration or --role-session-name options -R/--role option is needed\n"
         )
 
     def test_aws_parser_region_f(self):
@@ -1012,6 +1017,13 @@ class Test_Parser:
         parsed = self.parser.parse(command)
         assert parsed.sts_endpoint_region == sts_endpoint_region
 
+    def test_aws_parser_role_session_name(self):
+        argument = "--role-session-name"
+        role_session_name = ROLE_SESSION_NAME
+        command = [prowler_command, argument, role_session_name]
+        parsed = self.parser.parse(command)
+        assert parsed.role_session_name == role_session_name
+
     def test_parser_azure_auth_sp(self):
         argument = "--sp-env-auth"
         command = [prowler_command, "azure", argument]
@@ -1040,6 +1052,20 @@ class Test_Parser:
         parsed = self.parser.parse(command)
         assert parsed.provider == "azure"
         assert parsed.az_cli_auth
+
+    def test_azure_parser_shodan_short(self):
+        argument = "-N"
+        shodan_api_key = str(uuid.uuid4())
+        command = [prowler_command, "azure", argument, shodan_api_key]
+        parsed = self.parser.parse(command)
+        assert parsed.shodan == shodan_api_key
+
+    def test_azure_parser_shodan_long(self):
+        argument = "--shodan"
+        shodan_api_key = str(uuid.uuid4())
+        command = [prowler_command, "azure", argument, shodan_api_key]
+        parsed = self.parser.parse(command)
+        assert parsed.shodan == shodan_api_key
 
     def test_parser_azure_auth_managed_identity(self):
         argument = "--managed-identity-auth"
@@ -1164,3 +1190,25 @@ class Test_Parser:
         valid_bucket_names = ["bucket-name" "test" "test-test-test"]
         for bucket_name in valid_bucket_names:
             assert validate_bucket(bucket_name) == bucket_name
+
+    def test_validate_role_session_name_invalid_role_names(self):
+        bad_role_names = [
+            "role name",
+            "adasD*",
+            "test#",
+            "role-name?",
+        ]
+        for role_name in bad_role_names:
+            with pytest.raises(ArgumentTypeError) as argument_error:
+                validate_role_session_name(role_name)
+
+            assert argument_error.type == ArgumentTypeError
+            assert (
+                argument_error.value.args[0]
+                == "Role Session Name must be 2-64 characters long and consist only of upper- and lower-case alphanumeric characters with no spaces. You can also include underscores or any of the following characters: =,.@-"
+            )
+
+    def test_validate_role_session_name_valid_role_names(self):
+        valid_role_names = ["prowler-role" "test@" "test=test+test,."]
+        for role_name in valid_role_names:
+            assert validate_role_session_name(role_name) == role_name

@@ -3,7 +3,7 @@ from unittest import mock
 import botocore
 from boto3 import client
 from mock import patch
-from moto import mock_apigatewayv2
+from moto import mock_aws
 
 from tests.providers.aws.audit_info_utils import (
     AWS_REGION_US_EAST_1,
@@ -39,7 +39,7 @@ def mock_make_api_call(self, operation_name, kwarg):
 
 @patch("botocore.client.BaseClient._make_api_call", new=mock_make_api_call)
 class Test_apigatewayv2_api_access_logging_enabled:
-    @mock_apigatewayv2
+    @mock_aws
     def test_apigateway_no_apis(self):
         from prowler.providers.aws.services.apigatewayv2.apigatewayv2_service import (
             ApiGatewayV2,
@@ -66,12 +66,13 @@ class Test_apigatewayv2_api_access_logging_enabled:
 
             assert len(result) == 0
 
-    @mock_apigatewayv2
+    @mock_aws
     def test_apigateway_one_api_with_logging_in_stage(self):
         # Create ApiGatewayV2 Mocked Resources
         apigatewayv2_client = client("apigatewayv2", region_name=AWS_REGION_US_EAST_1)
         # Create ApiGatewayV2 API
         api = apigatewayv2_client.create_api(Name="test-api", ProtocolType="HTTP")
+        api_id = api["ApiId"]
         # Get stages mock with stage with logging
         from prowler.providers.aws.services.apigatewayv2.apigatewayv2_service import (
             ApiGatewayV2,
@@ -100,13 +101,13 @@ class Test_apigatewayv2_api_access_logging_enabled:
             assert result[0].status == "PASS"
             assert (
                 result[0].status_extended
-                == f"API Gateway V2 test-api ID {api['ApiId']} in stage test-stage has access logging enabled."
+                == f"API Gateway V2 test-api ID {api_id} in stage test-stage has access logging enabled."
             )
 
-            assert result[0].resource_id == "test-api"
+            assert result[0].resource_id == "test-api-test-stage"
             assert (
                 result[0].resource_arn
-                == f"arn:aws:apigateway:{AWS_REGION_US_EAST_1}::apis/{api['ApiId']}"
+                == f"arn:aws:apigateway:{AWS_REGION_US_EAST_1}::apis/{api_id}"
             )
             assert result[0].region == AWS_REGION_US_EAST_1
             assert result[0].resource_tags == [{}]

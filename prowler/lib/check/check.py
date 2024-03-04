@@ -72,9 +72,9 @@ def bulk_load_compliance_frameworks(provider: str) -> dict:
                         # cis_v1.4_aws.json --> cis_v1.4_aws
                         compliance_framework_name = filename.split(".json")[0]
                         # Store the compliance info
-                        bulk_compliance_frameworks[
-                            compliance_framework_name
-                        ] = load_compliance_framework(file_path)
+                        bulk_compliance_frameworks[compliance_framework_name] = (
+                            load_compliance_framework(file_path)
+                        )
     except Exception as e:
         logger.error(f"{e.__class__.__name__}[{e.__traceback__.tb_lineno}] -- {e}")
 
@@ -222,7 +222,7 @@ def print_categories(categories: set):
     singular_string = f"\nThere is {Fore.YELLOW}{categories_num}{Style.RESET_ALL} available category.\n"
 
     message = plural_string if categories_num > 1 else singular_string
-    for category in categories:
+    for category in sorted(categories):
         print(f"- {category}")
 
     print(message)
@@ -251,7 +251,7 @@ def print_compliance_frameworks(
     singular_string = f"\nThere is {Fore.YELLOW}{frameworks_num}{Style.RESET_ALL} available Compliance Framework.\n"
     message = plural_string if frameworks_num > 1 else singular_string
 
-    for framework in bulk_compliance_frameworks.keys():
+    for framework in sorted(bulk_compliance_frameworks.keys()):
         print(f"- {framework}")
 
     print(message)

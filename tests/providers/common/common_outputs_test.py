@@ -36,6 +36,7 @@ class Test_Common_Output_Options:
             audit_resources=None,
             audit_config=None,
             azure_region_config=Azure_Region_Config(),
+            locations=None,
         )
         return audit_info
 
@@ -200,6 +201,7 @@ class Test_Common_Output_Options:
         arguments.verbose = True
         arguments.only_logs = False
         arguments.unix_timestamp = False
+        arguments.shodan = "test-api-key"
 
         # Mock Azure Audit Info
         audit_info = self.set_mocked_azure_audit_info()
@@ -240,6 +242,7 @@ class Test_Common_Output_Options:
         arguments.verbose = True
         arguments.only_logs = False
         arguments.unix_timestamp = False
+        arguments.shodan = "test-api-key"
 
         # Mock Azure Audit Info
         audit_info = self.set_mocked_azure_audit_info()

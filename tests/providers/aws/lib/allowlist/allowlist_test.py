@@ -1,7 +1,7 @@
 import yaml
 from boto3 import resource
 from mock import MagicMock
-from moto import mock_dynamodb, mock_s3
+from moto import mock_aws
 
 from prowler.providers.aws.lib.allowlist.allowlist import (
     allowlist_findings,
@@ -25,7 +25,7 @@ from tests.providers.aws.audit_info_utils import (
 
 class Test_Allowlist:
     # Test S3 allowlist
-    @mock_s3
+    @mock_aws
     def test_s3_allowlist(self):
         audit_info = set_mocked_aws_audit_info()
         # Create bucket and upload allowlist yaml
@@ -44,7 +44,7 @@ class Test_Allowlist:
             )
 
     # Test DynamoDB allowlist
-    @mock_dynamodb
+    @mock_aws
     def test_dynamo_allowlist(self):
         audit_info = set_mocked_aws_audit_info()
         # Create table and put item
@@ -88,7 +88,7 @@ class Test_Allowlist:
             )["Accounts"]["*"]["Checks"]["iam_user_hardware_mfa_enabled"]["Resources"]
         )
 
-    @mock_dynamodb
+    @mock_aws
     def test_dynamo_allowlist_with_tags(self):
         audit_info = set_mocked_aws_audit_info()
         # Create table and put item
@@ -167,6 +167,46 @@ class Test_Allowlist:
         assert len(allowlisted_findings) == 1
         assert allowlisted_findings[0].status == "WARNING"
 
+    def test_allowlist_all_exceptions_empty(self):
+        # Allowlist example
+        allowlist = {
+            "Accounts": {
+                "*": {
+                    "Checks": {
+                        "*": {
+                            "Tags": ["*"],
+                            "Regions": [AWS_REGION_US_EAST_1],
+                            "Resources": ["*"],
+                            "Exceptions": {
+                                "Tags": [],
+                                "Regions": [],
+                                "Accounts": [],
+                                "Resources": [],
+                            },
+                        }
+                    }
+                }
+            }
+        }
+
+        # Check Findings
+        check_findings = []
+        finding_1 = MagicMock
+        finding_1.check_metadata = MagicMock
+        finding_1.check_metadata.CheckID = "check_test"
+        finding_1.status = "FAIL"
+        finding_1.region = AWS_REGION_US_EAST_1
+        finding_1.resource_id = "prowler"
+        finding_1.resource_tags = []
+
+        check_findings.append(finding_1)
+
+        allowlisted_findings = allowlist_findings(
+            allowlist, AWS_ACCOUNT_NUMBER, check_findings
+        )
+        assert len(allowlisted_findings) == 1
+        assert allowlisted_findings[0].status == "WARNING"
+
     def test_is_allowlisted_with_everything_excepted(self):
         allowlist = {
             "Accounts": {
@@ -219,6 +259,39 @@ class Test_Allowlist:
             AWS_REGION_US_EAST_1,
             "prowler",
             "",
+        )
+
+    def test_is_allowlisted_with_default_allowlist_with_tags(self):
+        allowlist = {
+            "Accounts": {
+                "*": {
+                    "Checks": {
+                        "*": {
+                            "Regions": ["*"],
+                            "Resources": ["*"],
+                            "Tags": ["Compliance=allow"],
+                        }
+                    }
+                }
+            }
+        }
+
+        assert is_allowlisted(
+            allowlist,
+            AWS_ACCOUNT_NUMBER,
+            "athena_1",
+            AWS_REGION_US_EAST_1,
+            "prowler",
+            "Compliance=allow",
+        )
+
+        assert not is_allowlisted(
+            allowlist,
+            AWS_ACCOUNT_NUMBER,
+            "athena_1",
+            AWS_REGION_US_EAST_1,
+            "prowler",
+            "Compliance=deny",
         )
 
     def test_is_allowlisted(self):
@@ -1185,6 +1258,22 @@ class Test_Allowlist:
             "eu-south-3",
             "test",
             "environment=pro",
+        )
+
+    def test_is_excepted_all_empty(self):
+        exceptions = {
+            "Accounts": [],
+            "Regions": [],
+            "Resources": [],
+            "Tags": [],
+        }
+
+        assert not is_excepted(
+            exceptions,
+            AWS_ACCOUNT_NUMBER,
+            "eu-south-2",
+            "test",
+            "environment=test",
         )
 
     def test_is_allowlisted_in_resource(self):

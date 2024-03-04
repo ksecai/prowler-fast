@@ -2,7 +2,7 @@ from re import search
 
 import boto3
 from mock import patch
-from moto import mock_iam, mock_sts
+from moto import mock_aws
 
 from prowler.providers.aws.aws_provider import (
     AWS_Provider,
@@ -29,10 +29,9 @@ from tests.providers.aws.audit_info_utils import (
 
 
 class Test_AWS_Provider:
-    @mock_iam
-    @mock_sts
+    @mock_aws
     def test_aws_provider_user_without_mfa(self):
-        # sessionName = "ProwlerAsessmentSession"
+        # sessionName = "ProwlerAssessmentSession"
         # Boto 3 client to create our user
         iam_client = boto3.client("iam", region_name=AWS_REGION_US_EAST_1)
         # IAM user
@@ -56,6 +55,7 @@ class Test_AWS_Provider:
                 session_duration=None,
                 external_id=None,
                 mfa_enabled=False,
+                role_session_name="ProwlerAssessmentSession",
             ),
             original_session=session,
         )
@@ -69,16 +69,16 @@ class Test_AWS_Provider:
             ),
         ):
             aws_provider = AWS_Provider(audit_info)
-            assert aws_provider.aws_session.region_name is None
+            assert aws_provider.aws_session.region_name == AWS_REGION_US_EAST_1
             assert aws_provider.role_info == AWS_Assume_Role(
                 role_arn=None,
                 session_duration=None,
                 external_id=None,
                 mfa_enabled=False,
+                role_session_name="ProwlerAssessmentSession",
             )
 
-    @mock_iam
-    @mock_sts
+    @mock_aws
     def test_aws_provider_user_with_mfa(self):
         # Boto 3 client to create our user
         iam_client = boto3.client("iam", region_name=AWS_REGION_US_EAST_1)
@@ -103,6 +103,7 @@ class Test_AWS_Provider:
                 session_duration=None,
                 external_id=None,
                 mfa_enabled=False,
+                role_session_name="ProwlerAssessmentSession",
             ),
             original_session=session,
             profile_region=AWS_REGION_US_EAST_1,
@@ -117,22 +118,22 @@ class Test_AWS_Provider:
             ),
         ):
             aws_provider = AWS_Provider(audit_info)
-            assert aws_provider.aws_session.region_name is None
+            assert aws_provider.aws_session.region_name == AWS_REGION_US_EAST_1
             assert aws_provider.role_info == AWS_Assume_Role(
                 role_arn=None,
                 session_duration=None,
                 external_id=None,
                 mfa_enabled=False,
+                role_session_name="ProwlerAssessmentSession",
             )
 
-    @mock_iam
-    @mock_sts
+    @mock_aws
     def test_aws_provider_assume_role_with_mfa(self):
         # Variables
         role_name = "test-role"
         role_arn = f"arn:aws:iam::{AWS_ACCOUNT_NUMBER}:role/{role_name}"
         session_duration_seconds = 900
-        sessionName = "ProwlerAsessmentSession"
+        sessionName = "ProwlerAssessmentSession"
 
         # Boto 3 client to create our user
         iam_client = boto3.client("iam", region_name=AWS_REGION_US_EAST_1)
@@ -157,6 +158,7 @@ class Test_AWS_Provider:
                 session_duration=session_duration_seconds,
                 external_id=None,
                 mfa_enabled=True,
+                role_session_name="ProwlerAssessmentSession",
             ),
             original_session=session,
             profile_region=AWS_REGION_US_EAST_1,
@@ -203,14 +205,13 @@ class Test_AWS_Provider:
                 assume_role_response["AssumedRoleUser"]["AssumedRoleId"]
             ) == 21 + 1 + len(sessionName)
 
-    @mock_iam
-    @mock_sts
+    @mock_aws
     def test_aws_provider_assume_role_without_mfa(self):
         # Variables
         role_name = "test-role"
         role_arn = f"arn:aws:iam::{AWS_ACCOUNT_NUMBER}:role/{role_name}"
         session_duration_seconds = 900
-        sessionName = "ProwlerAsessmentSession"
+        sessionName = "ProwlerAssessmentSession"
 
         # Boto 3 client to create our user
         iam_client = boto3.client("iam", region_name=AWS_REGION_US_EAST_1)
@@ -235,6 +236,7 @@ class Test_AWS_Provider:
                 session_duration=session_duration_seconds,
                 external_id=None,
                 mfa_enabled=False,
+                role_session_name="ProwlerAssessmentSession",
             ),
             original_session=session,
             profile_region=AWS_REGION_US_EAST_1,
@@ -273,8 +275,7 @@ class Test_AWS_Provider:
             assume_role_response["AssumedRoleUser"]["AssumedRoleId"]
         ) == 21 + 1 + len(sessionName)
 
-    @mock_iam
-    @mock_sts
+    @mock_aws
     def test_assume_role_with_sts_endpoint_region(self):
         # Variables
         role_name = "test-role"
@@ -282,7 +283,7 @@ class Test_AWS_Provider:
         session_duration_seconds = 900
         AWS_REGION_US_EAST_1 = AWS_REGION_EU_WEST_1
         sts_endpoint_region = AWS_REGION_US_EAST_1
-        sessionName = "ProwlerAsessmentSession"
+        sessionName = "ProwlerAssessmentSession"
 
         # Boto 3 client to create our user
         iam_client = boto3.client("iam", region_name=AWS_REGION_US_EAST_1)
@@ -307,6 +308,7 @@ class Test_AWS_Provider:
                 session_duration=session_duration_seconds,
                 external_id=None,
                 mfa_enabled=False,
+                role_session_name="ProwlerAssessmentSession",
             ),
             original_session=session,
             profile_region=AWS_REGION_US_EAST_1,
@@ -438,7 +440,7 @@ class Test_AWS_Provider:
                                 "me-central-1",
                                 "me-south-1",
                                 "sa-east-1",
-                                "us-east-1",
+                                AWS_REGION_US_EAST_1,
                                 "us-east-2",
                                 "us-west-1",
                                 "us-west-2",
@@ -475,7 +477,7 @@ class Test_AWS_Provider:
                                 "me-central-1",
                                 "me-south-1",
                                 "sa-east-1",
-                                "us-east-1",
+                                AWS_REGION_US_EAST_1,
                                 "us-east-2",
                                 "us-west-1",
                                 "us-west-2",
