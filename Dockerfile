@@ -31,4 +31,5 @@ USER 0
 RUN rm -rf /home/prowler/prowler /home/prowler/pyproject.toml /home/prowler/README.md /home/prowler/build /home/prowler/prowler.egg-info
 
 USER prowler
+USER root
 ENTRYPOINT ["prowler"]
